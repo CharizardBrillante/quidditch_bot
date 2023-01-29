@@ -73,18 +73,35 @@ class Wizard extends Entity {
     }
 
     setThurst(targetPos) {
-        //console.error('setThurst: ', Math.round(this.getAngleBetweenMeAndTarget(targetPos)/180*150) )
-        return Math.round(this.getAngleBetweenMeAndTarget(targetPos)/180*150) //set thrust depending on angle between wizard and target
+        let proportional = Math.round(this.getAngleBetweenMeAndTarget(targetPos)/180*150) //set thrust depending on angle between wizard and target
+        if (proportional < 30) return 30
+        return proportional;
     }
 
     grab(snaffles){
         let snaffle = this.findNearestSnaffle(snaffles);
-        if (snaffle == null) return `MOVE ${this.pos[0]} ${this.pos[1]} 150`
+        if (snaffle == null) return null
         let snafflePos = [snaffle.pos[0], snaffle.pos[1]];
         let thurst = this.setThurst(snafflePos);
         
         //console.error('grab: ', `MOVE ${snafflePos[0]} ${snafflePos[1]} ${thurst}`)
         return `MOVE ${snafflePos[0]} ${snafflePos[1]} ${thurst}`
+    }
+
+    collide(oppoTeam){
+        let dist = Number.MAX_VALUE;
+        let nearestOppo = null
+
+        oppoTeam.forEach((o) => {
+            let distFromWiz = this.getDistanceFromTarget(o.pos)
+            //console.error('distFromWiz: ', distFromWiz)
+            if (distFromWiz < dist) {
+                dist = distFromWiz;
+                nearestOppo = o;
+            }        
+        })
+
+        return `MOVE ${nearestOppo.pos[0]} ${nearestOppo.pos[1]} 150`
     }
 
     getGKPosition(oppoTeam, goal){
@@ -128,12 +145,15 @@ class Wizard extends Entity {
     }
 
     play(snaffles, oppoTeam, goal){
-        let action = ""
-        if (this.state == 1)  //grabbed a snaffle
-            action = this.throwSnaffle(oppoTeam, goal)
-        else 
-            action = this.grab(snaffles)
-        return action;
+        let grab = this.grab(snaffles);
+
+        if (this.state == 1)  //if grabbed a snaffle, throw it
+            return this.throwSnaffle(oppoTeam, goal)
+        else {
+            if (!grab) return this.collide(oppoTeam) //if no snaffle in his zone, collide
+            else return this.grab(snaffles) //if any snaffle in his zone, grab it
+        }
+            
     }
 }
 class Snaffle extends Entity {
